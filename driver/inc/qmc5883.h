@@ -12,6 +12,11 @@
   void qmc5883_setSamplingRate( int rate );
   void qmc5883_setRange( int range );
   void qmc5883_setOversampling( int ovl );
+  void Calculate_QMC5883(void);
+  void QMC5883L_ConvertrawData(void);
+  uint8_t QMC5883L_GetData(short Magnet[3]);
+/* Variables -------------------------------------------------------------------------------*/
+extern unsigned char  QMC5883_Calculate_Flag;
 struct QMC5883L {
   int16_t xhigh, xlow;
   int16_t yhigh, ylow;

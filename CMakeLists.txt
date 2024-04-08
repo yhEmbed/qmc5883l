@@ -1,11 +1,11 @@
 cmake_minimum_required(VERSION 3.1.0)
 
-project(qmc5883 VERSION 1.0.0 LANGUAGES C)
+project(qmc5883 VERSION 1.0.0)
 
 add_definitions(-DHAVE_CLOCK_GETTIME=1)
 add_definitions(-DVERSION="${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH}")
 
-add_executable(qmc5883 src/main.c driver/src/qmc5883.c driver/src/i2c.c)
+add_executable(qmc5883 src/main.cpp driver/src/qmc5883.cpp driver/src/i2c.cpp)
 target_link_libraries(qmc5883 m)
 include_directories(./driver/inc)
 set_target_properties(qmc5883 PROPERTIES
@@ -18,5 +18,6 @@ message(STATUS "summary of build options:
     Target system:   ${CMAKE_SYSTEM_NAME}
     Compiler:
       C compiler:    ${CMAKE_C_COMPILER} (${CMAKE_C_COMPILER_ID})
+      C++ compiler:    ${CMAKE_CXX_COMPILER} (${CMAKE_CXX_COMPILER_ID})
       CFLAGS:        ${CMAKE_C_FLAGS_${_build_type}} ${CMAKE_C_FLAGS}
 ")
