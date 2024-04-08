@@ -21,20 +21,26 @@
 #include <sys/stat.h>
 #include <string.h>
 
-/* Define ----------------------------------------------------------------------------------*/
-/* Macro -----------------------------------------------------------------------------------*/
-/* Typedef ---------------------------------------------------------------------------------*/
-typedef struct {
-    short mag[3];
-}MagnetData_t;
-
-MagnetData_t algo_imu;
-
+#define ELLIPSE_FIT
+#define  APP_DEFAULT_PARAM_FILE "/etc/qmc5883_default_param.ini"
+#define  APP_PARAM_FILE "/etc/qmc5883_param.ini"
 
 #define  APP_TOOL_DIR "/tmp/apptool/"
 static void usage()
 {
 	printf("\n");
+#ifdef ELLIPSE_FIT
+	printf("Usage:\n");
+	printf("Examples:\n");
+	printf("  qmc5883 -h\n");
+	printf("  qmc5883 -C -n 3000\n");
+	printf("  qmc5883 -t 500 \n");
+	printf("Options:\n");
+	printf("  -C  Generate calibration parameters \n");
+	printf("  -n  calibration times \n");
+	printf("  -t  Angle_XY conversion interval \n");
+	printf("  -v  Displays the print information \n");
+#else
 	printf("Usage:\n");
 	printf("Examples:\n");
 	printf("  qmc5883 -h\n");
@@ -45,6 +51,7 @@ static void usage()
 	printf("  -s single read mode \n");
 	printf("  -c mutiple read mode \n");
 	printf("  -p permanent read mode\n");
+#endif
 	printf("\n");
 	exit(0);
 }
@@ -81,15 +88,40 @@ int main(int argc, char* argv[])
 	int interval_time=500;
 	int permanent=0;
 	int verbose=0;
+	int calculate_flag = 0;
+	int calculate_times = 3000;
 	int heading ;
 	char str[100];
 	char filename[100];
 	char path[100];
+	char param_path[100];
 	if(argc < 2) {
 		usage();
 		exit(0);
 	}
-	
+#ifdef ELLIPSE_FIT
+	while((c = getopt(argc,argv,"t:Cn:hv")) != -1){
+		switch(c){
+		case 't':	
+			interval_time =	atoi(optarg);		
+			break;
+		case 'C':	
+			calculate_flag = 1;		
+			break;
+		case 'n':
+			calculate_times = atoi(optarg);
+		case 'v':	
+			verbose =	1;		
+			break;
+		case 'h':
+			usage();
+			break;
+		default:
+			usage();
+			break;
+		}
+	}
+#else
 	while((c = getopt(argc,argv,"s:c:n:t:p:hv")) != -1){
 		switch(c){
 		case 's':
@@ -118,10 +150,11 @@ int main(int argc, char* argv[])
 			break;
 		}
 	}
-	
+#endif
+
 	if(qmc5883_init())return -1;
 	
-	qmc5883_setSamplingRate(50);
+	qmc5883_setSamplingRate(200);
 	
 	if(access(APP_TOOL_DIR, F_OK) != 0 ) {
         printf("to create apptool dir: %s\n", APP_TOOL_DIR);
@@ -131,25 +164,59 @@ int main(int argc, char* argv[])
             //return -1;
         }
     }
-	
-	
-#if 1
+
+	if(access(APP_PARAM_FILE, F_OK) != 0 ) {
+        printf("qmc5883l: use default param\n");
+		strcpy(param_path, APP_DEFAULT_PARAM_FILE);
+    } else{
+		strcpy(param_path, APP_PARAM_FILE);
+	}
+
+	if(access(param_path, F_OK) != 0 ){
+		printf("qmc5883l: param_path:%s is not exist, return\n", param_path);
+		return -1;
+	} else{
+		printf("qmc5883l: param_path:%s \n", param_path);
+	}
+
+	if(calculate_flag == 1) 
+		QMC5883_Calculate_Flag = 2;
+	else{
+		QMC5883L_Get_Param(param_path);
+		QMC5883_Calculate_Flag = 1;
+	}
+		
+#ifdef ELLIPSE_FIT
 	while(1)
 	{
-		if (QMC5883_Calculate_Flag > 1)
-		{
-			QMC5883L_GetData(algo_imu.mag);
-			Calculate_QMC5883();
-			// usleep(interval_time);
-		}
 
-		
-		if(QMC5883_Calculate_Flag == 1)
-		{
-			QMC5883L_GetData(algo_imu.mag);
+		if(calculate_flag == 1){
+			QMC5883L_GetData();
+			if(Calculate_QMC5883L(calculate_times) == 1){
+				printf("Calculate param success,save param \r\n");
+				QMC5883L_Save_Param((char *)APP_PARAM_FILE);
+				return 0;
+			}
+
+		} else {
+			QMC5883L_GetData();
 			QMC5883L_ConvertrawData();
 			usleep(interval_time*1000);
 		}
+		// if (QMC5883_Calculate_Flag > 1)
+		// {
+		// 	QMC5883L_GetData(algo_imu.mag);
+		// 	Calculate_QMC5883();
+		// 	// usleep(interval_time);
+		// }
+
+		
+		// if(QMC5883_Calculate_Flag == 1)
+		// {
+		// 	QMC5883L_GetData(algo_imu.mag);
+		// 	QMC5883L_ConvertrawData();
+		// 	usleep(interval_time*1000);
+		// }
 	}
 
 		

@@ -246,7 +246,7 @@ int qmc5883_init() {
   qmc5883.addr = QMC5883L_ADDR;
   qmc5883.oversampling = QMC5883L_CONFIG_OS512;
   qmc5883.range = QMC5883L_CONFIG_2GAUSS;
-  qmc5883.rate = QMC5883L_CONFIG_50HZ;
+  qmc5883.rate = QMC5883L_CONFIG_200HZ;
   qmc5883.mode = QMC5883L_CONFIG_CONT;
 
   
@@ -298,6 +298,163 @@ int qmc5883_readRaw( int16_t *x, int16_t *y, int16_t *z, int16_t *t )
   return 1;
 }
 
+typedef struct QMC5883_PARAM
+{
+	float mx_offset, my_offset, mz_offset;		/*!< 地磁偏移变量 */
+	float mx_k,	my_k, mz_k;     				/*!< 地磁标度系数变量 */
+}QMC5883_PARAM;
+
+QMC5883_PARAM qmc5883_param;
+static char *ini_get_string(char *section, char *key, char *filename)
+{
+	FILE *fp = NULL;
+	char szLine[1024];
+	static char tmpstr[1024];
+	int flag = 0;
+	char *tmp = NULL;
+	char *find = NULL;
+
+	fp=fopen(filename, "r");
+	if (fp == NULL)
+	{
+		printf("no such file: %s", filename);
+		return NULL;
+	}
+
+	while (!feof(fp))
+	{	
+		memset(szLine, NULL, sizeof(szLine));
+		memset(tmpstr, NULL, sizeof(tmpstr));
+
+		/** read a line to szLine */
+		fgets(szLine, 1024, fp);
+
+		if ('#' == szLine[0])
+		{
+			continue;
+		}
+		else if(szLine[0] == NULL)
+		{
+			printf("read end\n");
+			break;
+		}
+		else if((isspace(szLine[0])) && (flag == 1))
+		{
+			printf("no key: %s in section: %s\n", key, section);
+			break;
+		}
+		else
+		{
+			tmp = strchr(szLine, '=');
+		}
+
+		if ((tmp != NULL) && (flag == 1))
+		{
+			if (strstr(szLine, key) != NULL)
+			{
+				strcpy(tmpstr, tmp + 1);
+				fclose(fp);
+
+				find = strchr(tmpstr, '\n');
+				if(find != NULL)
+				{
+					*find = NULL;
+				}
+				return tmpstr;
+			}
+		}
+		else
+		{
+			strcpy(tmpstr, "[");
+			strcat(tmpstr, section);
+			strcat(tmpstr, "]");
+			if (strncmp(tmpstr, szLine, strlen(tmpstr)) == 0)
+			{
+				//found section
+				flag = 1;
+				szLine[0] = '\0';
+			}
+			else
+			{
+				continue;
+			}
+		}
+	}
+
+	if(flag == 0)
+	{
+		printf("no such section: %s\n", section);
+	}
+
+	fclose(fp);
+	return "";
+}
+
+static int ini_get_int(char *section, char *key, char *filename)
+{
+	return atoi(ini_get_string(section, key, filename));
+}
+
+// [qmc5883] 
+// mx_offset=1285.802368 
+// my_offset=574.786072 
+// mz_offset=-1325.702393 
+// mx_k=4928.951172 
+// my_k=5716.808594 
+// mz_k=6050.792969 
+
+int QMC5883L_Save_Param(char *file_path)
+{
+	FILE* fp = NULL;
+	char *str;
+	int j = 0;
+	str = (char *)malloc(1024);
+	memset(str, 0, sizeof(1024));
+	j = sprintf(str, "[qmc5883] \n", NULL);
+	j += sprintf(str+j, "mx_offset=%f \n", qmc5883_param.mx_offset);
+	j += sprintf(str+j, "my_offset=%f \n", qmc5883_param.my_offset);
+	j += sprintf(str+j, "mz_offset=%f \n", qmc5883_param.mz_offset);
+	j += sprintf(str+j, "mx_k=%f \n", qmc5883_param.mx_k);
+	j += sprintf(str+j, "my_k=%f \n", qmc5883_param.my_k);
+	j += sprintf(str+j, "mz_k=%f \n", qmc5883_param.mz_k);
+	printf("str:\n%s", str);
+	fp = fopen(file_path, "w+");
+	if (fp == NULL)
+	{
+	    printf("open2222 file %s error\n", file_path);
+	    return -1;
+	}
+	
+	fwrite(str, 1, strlen(str), fp);
+	fclose(fp);
+	return 0;
+}
+
+uint8_t QMC5883L_Get_Param(char *file_path)
+{
+
+	qmc5883_param.mx_offset = atof(ini_get_string((char *)"qmc5883", (char *)"mx_offset", file_path));
+	qmc5883_param.my_offset = atof(ini_get_string((char *)"qmc5883", (char *)"my_offset", file_path));
+	qmc5883_param.mz_offset = atof(ini_get_string((char *)"qmc5883", (char *)"mz_offset", file_path));
+	qmc5883_param.mx_k = atof(ini_get_string((char *)"qmc5883", (char *)"mx_k", file_path));
+	qmc5883_param.my_k = atof(ini_get_string((char *)"qmc5883", (char *)"my_k", file_path));
+	qmc5883_param.mz_k = atof(ini_get_string((char *)"qmc5883", (char *)"mz_k", file_path));
+	printf("QMC5883L_Get_Param: \n");
+	printf("    mx_offset:%f\n", qmc5883_param.mx_offset);
+	printf("    my_offset:%f\n", qmc5883_param.my_offset);
+	printf("    mz_offset:%f\n", qmc5883_param.mz_offset);
+	printf("    mx_k:%f\n", qmc5883_param.mx_k);
+	printf("    my_k:%f\n", qmc5883_param.my_k);
+	printf("    mz_k:%f\n", qmc5883_param.mz_k);
+	// printf("QMC5883L_Get_Param: mx_offset:%s\n", ini_get_string("qmc5883", "mx_offset", file_path));
+	// printf("QMC5883L_Get_Param: my_offset:%s\n", ini_get_string("qmc5883", "my_offset", file_path));
+	// printf("QMC5883L_Get_Param: mz_offset:%s\n", ini_get_string("qmc5883", "mz_offset", file_path));
+	// printf("QMC5883L_Get_Param: mx_k:%s\n", ini_get_string("qmc5883", "mx_k", file_path));
+	// printf("QMC5883L_Get_Param: my_k:%s\n", ini_get_string("qmc5883", "my_k", file_path));
+	// printf("QMC5883L_Get_Param: mz_k:%s\n", ini_get_string("qmc5883", "mz_k", file_path));
+	return 0;
+}
+
 /* Macro -----------------------------------------------------------------------------------*/
 /* Typedef ---------------------------------------------------------------------------------*/
 enum
@@ -309,12 +466,12 @@ enum
 	AXIS_TOTAL
 };
 
+
 /* Macro -----------------------------------------------------------------------------------*/
 /* Typedef ---------------------------------------------------------------------------------*/
 /* Variables -------------------------------------------------------------------------------*/
 float mx, my, mz;
-float mx_offset, my_offset, mz_offset;		/*!< 地磁偏移变量 */
-float mx_k,	my_k, mz_k;     				/*!< 地磁标度系数变量 */
+
 
 unsigned char  QMC5883_Calculate_Flag = 2;
 
@@ -326,7 +483,7 @@ typedef struct {
 
 MagnetAngle_t Sample_Angle;
 
-uint8_t QMC5883L_GetData(short Magnet[3])
+uint8_t QMC5883L_GetData()
 {
 	uint8_t Buff[6], i;
 
@@ -347,9 +504,9 @@ uint8_t QMC5883L_GetData(short Magnet[3])
 
 	if(	QMC5883_Calculate_Flag==1)
 	{
-		mx=(MagnetRawAd[AXIS_X]-mx_offset)/mx_k;
-		my=(MagnetRawAd[AXIS_Y]-my_offset)/my_k;
-		mz=(MagnetRawAd[AXIS_Z]-mz_offset)/mz_k;
+		mx=(MagnetRawAd[AXIS_X]-qmc5883_param.mx_offset)/qmc5883_param.mx_k;
+		my=(MagnetRawAd[AXIS_Y]-qmc5883_param.my_offset)/qmc5883_param.my_k;
+		mz=(MagnetRawAd[AXIS_Z]-qmc5883_param.mz_offset)/qmc5883_param.mz_k;
 		printf("mx=%f,my=%f,mz=%f \r\n",mx,my,mz);
 	}
 	else
@@ -419,9 +576,10 @@ float  	x_avr=0,    xx_avr=0,   xxx_avr=0,  yyyy_avr=0,
  * @param   :  
  * @retva   : 
  */
-void Calculate_QMC5883(void)
+char Calculate_QMC5883L(uint32_t calculate_times)
 {
 	static uint16_t n=0;
+	char ret = -1;
 	if(QMC5883_Calculate_Flag==2)//各次累加和统计
 	{
 		n++;
@@ -435,12 +593,13 @@ void Calculate_QMC5883(void)
 		                            yzz_sum+=(my*mz*mz);
 		                            zzz_sum+=(mz*mz*mz);
 		
-		if(n>1000){
+		if(n>calculate_times){
 			QMC5883_Calculate_Flag=3;
 		}
 		if(n % 100 == 0){
 			printf("Calculate_QMC5883 n=%d \n", n);
 		}
+		ret = 0;
 	}
 	else if(QMC5883_Calculate_Flag==3)
 	{
@@ -484,7 +643,7 @@ void Calculate_QMC5883(void)
 		A_inv_matrix = A_matrix.inverse();
 		cout << "A_inv_matrix=\n" << A_inv_matrix << endl;
 			//非齐次列向量赋值
-			B[0]=-xxyy_avr;
+		B[0]=-xxyy_avr;
 		B[1]=-xxzz_avr;
 		B[2]=-xxx_avr ;
 		B[3]=-xxy_avr ;
@@ -497,18 +656,21 @@ void Calculate_QMC5883(void)
 		Par_matrix = A_inv_matrix*B_matrix;
 		cout << "Par_matrix=\n" << Par_matrix << endl;
 			//计算椭球参数
-			mx_offset=(-Par_matrix(2)/2.0f);             //拟合出的x轴中心坐标
-		my_offset=(-Par_matrix(3))/(2.0f*Par_matrix(0));    //拟合出的y轴中心坐标
-		mz_offset=(-Par_matrix(4)/(2.0f*Par_matrix(1)));    //拟合出的z轴中心坐标
-		printf("mx_offset=%f,my_offset=%f,mz_offset=%f \r\n",mx_offset,my_offset,mz_offset);
+			qmc5883_param.mx_offset=(-Par_matrix(2)/2.0f);             //拟合出的x轴中心坐标
+		qmc5883_param.my_offset=(-Par_matrix(3))/(2.0f*Par_matrix(0));    //拟合出的y轴中心坐标
+		qmc5883_param.mz_offset=(-Par_matrix(4)/(2.0f*Par_matrix(1)));    //拟合出的z轴中心坐标
+		printf("mx_offset=%f,my_offset=%f,mz_offset=%f \r\n",qmc5883_param.mx_offset,qmc5883_param.my_offset,qmc5883_param.mz_offset);
     
-		mx_k= sqrtf(mx_offset*mx_offset + Par_matrix(0)*my_offset*my_offset + Par_matrix(1)*mz_offset*mz_offset - Par_matrix(5));  //拟合出的x方向上的轴半径
-		my_k= mx_k/sqrt(Par_matrix(0));                                                                              //拟合出的y方向上的轴半径
-		mz_k= mx_k/sqrt(Par_matrix(1));                                                                              //拟合出的z方向上的轴半径
-		printf("mx_k=%f,my_k=%f,mz=%f \r\n",mx_k,my_k,mz_k);
+		qmc5883_param.mx_k= sqrtf(qmc5883_param.mx_offset*qmc5883_param.mx_offset + Par_matrix(0)*qmc5883_param.my_offset*qmc5883_param.my_offset + Par_matrix(1)*qmc5883_param.mz_offset*qmc5883_param.mz_offset - Par_matrix(5));  //拟合出的x方向上的轴半径
+		qmc5883_param.my_k= qmc5883_param.mx_k/sqrt(Par_matrix(0));                                                                              //拟合出的y方向上的轴半径
+		qmc5883_param.mz_k= qmc5883_param.mx_k/sqrt(Par_matrix(1));                                                                              //拟合出的z方向上的轴半径
+		printf("mx_k=%f,my_k=%f,mz=%f \r\n",qmc5883_param.mx_k,qmc5883_param.my_k,qmc5883_param.mz_k);
 		
-		QMC5883_Calculate_Flag=1;
+		// QMC5883_Calculate_Flag=1;
+
+		ret = 1;
 	}		
+	return ret;
 }
 
 	
