@@ -6,19 +6,20 @@
   void qmc5883_reset();
   int  qmc5883_ready();
   void qmc5883_reconfig();
-  int  qmc5883_readHeading();
+  int  qmc5883_read_heading();
   int  qmc5883_readRaw( int16_t *x, int16_t *y, int16_t *z, int16_t *t );
   void qmc5883_resetCalibration();
   void qmc5883_setSamplingRate( int rate );
   void qmc5883_setRange( int range );
   void qmc5883_setOversampling( int ovl );
-  int QMC5883L_Save_Param(char *file_path);
-  char Calculate_QMC5883L(uint32_t calculate_times);
-  void QMC5883L_ConvertrawData(void);
-  uint8_t QMC5883L_GetData(void);
-  uint8_t QMC5883L_Get_Param(char *file_path);
+  int qmc5883_save_param(char *file_path);
+  char calculate_qmc5883(uint32_t calculate_times);
+  void qmc5883_convert_rawdata(void);
+  uint8_t qmc5883_get_data(void);
+  uint8_t qmc5883_get_param(char *file_path);
+  void qmc5883_dump_angle2file(const char* file_path);
 /* Variables -------------------------------------------------------------------------------*/
-extern unsigned char  QMC5883_Calculate_Flag;
+extern unsigned char  g_qmc5883_calculate_flag;
 struct QMC5883L {
   int16_t xhigh, xlow;
   int16_t yhigh, ylow;

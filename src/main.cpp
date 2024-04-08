@@ -180,41 +180,44 @@ int main(int argc, char* argv[])
 	}
 
 	if(calculate_flag == 1) 
-		QMC5883_Calculate_Flag = 2;
+		g_qmc5883_calculate_flag = 2;
 	else{
-		QMC5883L_Get_Param(param_path);
-		QMC5883_Calculate_Flag = 1;
+		qmc5883_get_param(param_path);
+		g_qmc5883_calculate_flag = 1;
 	}
-		
+
 #ifdef ELLIPSE_FIT
+	sprintf(path,"%s%s",APP_TOOL_DIR,"qmc5883");
+	printf("qmc5883l: angle_xy_path:%s \n", path);
 	while(1)
 	{
 
 		if(calculate_flag == 1){
-			QMC5883L_GetData();
-			if(Calculate_QMC5883L(calculate_times) == 1){
+			qmc5883_get_data();
+			if(calculate_qmc5883(calculate_times) == 1){
 				printf("Calculate param success,save param \r\n");
-				QMC5883L_Save_Param((char *)APP_PARAM_FILE);
+				qmc5883_save_param((char *)APP_PARAM_FILE);
 				return 0;
 			}
 
 		} else {
-			QMC5883L_GetData();
-			QMC5883L_ConvertrawData();
+			qmc5883_get_data();
+			qmc5883_convert_rawdata();
+			qmc5883_dump_angle2file(path);
 			usleep(interval_time*1000);
 		}
-		// if (QMC5883_Calculate_Flag > 1)
+		// if (g_qmc5883_calculate_flag > 1)
 		// {
-		// 	QMC5883L_GetData(algo_imu.mag);
+		// 	qmc5883_get_data(algo_imu.mag);
 		// 	Calculate_QMC5883();
 		// 	// usleep(interval_time);
 		// }
 
 		
-		// if(QMC5883_Calculate_Flag == 1)
+		// if(g_qmc5883_calculate_flag == 1)
 		// {
-		// 	QMC5883L_GetData(algo_imu.mag);
-		// 	QMC5883L_ConvertrawData();
+		// 	qmc5883_get_data(algo_imu.mag);
+		// 	qmc5883_convert_rawdata();
 		// 	usleep(interval_time*1000);
 		// }
 	}
@@ -223,7 +226,7 @@ int main(int argc, char* argv[])
 #else
 	while(1)
 	{	
-		heading = qmc5883_readHeading();
+		heading = qmc5883_read_heading();
 		if(heading==0) {
 			/* Still calibrating, so measure but don't print */
 		} else {
@@ -234,7 +237,7 @@ int main(int argc, char* argv[])
 	sprintf(path,"%s%s",APP_TOOL_DIR,"qmc5883");
 	
 	if(single_act){
-		heading = qmc5883_readHeading();
+		heading = qmc5883_read_heading();
 		sprintf(str,"%d",heading);
 		
 		dump_to_file(path,str,strlen(str));
@@ -242,7 +245,7 @@ int main(int argc, char* argv[])
 	}else if(conti_num){
 
 	  for(i=0;i<conti_num;i++){
-		heading = qmc5883_readHeading();
+		heading = qmc5883_read_heading();
 		sprintf(str,"%d",heading);
 		dump_to_file(path,str,strlen(str));
 		if(verbose)	printf("heading=%d\n",heading);
@@ -252,7 +255,7 @@ int main(int argc, char* argv[])
 	}else if(permanent){
 
 		for(;;){
-			heading = qmc5883_readHeading();
+			heading = qmc5883_read_heading();
 			sprintf(str,"%d",heading);
 			dump_to_file(path,str,strlen(str));
 			if(verbose)	printf("heading=%d\n",heading);
