@@ -13,9 +13,9 @@
   void qmc5883_setRange( int range );
   void qmc5883_setOversampling( int ovl );
   int qmc5883_save_param(char *file_path);
-  char calculate_qmc5883(uint32_t calculate_times);
-  void qmc5883_convert_rawdata(void);
-  uint8_t qmc5883_get_data(void);
+  char calculate_qmc5883(uint32_t calculate_times, char verbose);
+  void qmc5883_convert_rawdata(char verbose);
+  uint8_t qmc5883_get_data(char verbose);
   uint8_t qmc5883_get_param(char *file_path);
   void qmc5883_dump_angle2file(const char* file_path);
 /* Variables -------------------------------------------------------------------------------*/

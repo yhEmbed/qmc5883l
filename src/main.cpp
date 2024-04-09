@@ -26,6 +26,9 @@
 #define  APP_PARAM_FILE "/etc/qmc5883_param.ini"
 
 #define  APP_TOOL_DIR "/tmp/apptool/"
+
+extern unsigned char  g_qmc5883_calculate_flag;
+
 static void usage()
 {
 	printf("\n");
@@ -154,7 +157,7 @@ int main(int argc, char* argv[])
 
 	if(qmc5883_init())return -1;
 	
-	qmc5883_setSamplingRate(200);
+	qmc5883_setSamplingRate(100);
 	
 	if(access(APP_TOOL_DIR, F_OK) != 0 ) {
         printf("to create apptool dir: %s\n", APP_TOOL_DIR);
@@ -165,23 +168,23 @@ int main(int argc, char* argv[])
         }
     }
 
-	if(access(APP_PARAM_FILE, F_OK) != 0 ) {
-        printf("qmc5883l: use default param\n");
-		strcpy(param_path, APP_DEFAULT_PARAM_FILE);
-    } else{
-		strcpy(param_path, APP_PARAM_FILE);
-	}
-
-	if(access(param_path, F_OK) != 0 ){
-		printf("qmc5883l: param_path:%s is not exist, return\n", param_path);
-		return -1;
-	} else{
-		printf("qmc5883l: param_path:%s \n", param_path);
-	}
-
-	if(calculate_flag == 1) 
+	if(calculate_flag == 1){
 		g_qmc5883_calculate_flag = 2;
-	else{
+	}
+	else {
+		if(access(APP_PARAM_FILE, F_OK) != 0 ) {
+			printf("qmc5883l: use default param\n");
+			strcpy(param_path, APP_DEFAULT_PARAM_FILE);
+		} else{
+			strcpy(param_path, APP_PARAM_FILE);
+		}
+
+		if(access(param_path, F_OK) != 0 ){
+			printf("qmc5883l: param_path:%s is not exist, return\n", param_path);
+			return -1;
+		} else{
+			printf("qmc5883l: param_path:%s \n", param_path);
+		}
 		qmc5883_get_param(param_path);
 		g_qmc5883_calculate_flag = 1;
 	}
@@ -193,16 +196,16 @@ int main(int argc, char* argv[])
 	{
 
 		if(calculate_flag == 1){
-			qmc5883_get_data();
-			if(calculate_qmc5883(calculate_times) == 1){
+			qmc5883_get_data(verbose);
+			if(calculate_qmc5883(calculate_times, verbose) == 1){
 				printf("Calculate param success,save param \r\n");
 				qmc5883_save_param((char *)APP_PARAM_FILE);
 				return 0;
 			}
 
 		} else {
-			qmc5883_get_data();
-			qmc5883_convert_rawdata();
+			qmc5883_get_data(verbose);
+			qmc5883_convert_rawdata(verbose);
 			qmc5883_dump_angle2file(path);
 			usleep(interval_time*1000);
 		}

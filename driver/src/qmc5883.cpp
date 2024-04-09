@@ -485,7 +485,7 @@ typedef struct {
 
 MagnetAngle_t Sample_Angle;
 
-uint8_t qmc5883_get_data()
+uint8_t qmc5883_get_data(char verbose)
 {
 	uint8_t Buff[6], i;
 
@@ -509,7 +509,7 @@ uint8_t qmc5883_get_data()
 		mx=(MagnetRawAd[AXIS_X]-qmc5883_param.mx_offset)/qmc5883_param.mx_k;
 		my=(MagnetRawAd[AXIS_Y]-qmc5883_param.my_offset)/qmc5883_param.my_k;
 		mz=(MagnetRawAd[AXIS_Z]-qmc5883_param.mz_offset)/qmc5883_param.mz_k;
-		printf("mx=%f,my=%f,mz=%f \r\n",mx,my,mz);
+		if(verbose) printf("mx=%f,my=%f,mz=%f \r\n",mx,my,mz);
 	}
 	else
 	{
@@ -533,20 +533,25 @@ uint8_t qmc5883_get_data()
  * @return 
  * @details 
  */
-void qmc5883_convert_rawdata(void)
+void qmc5883_convert_rawdata(char verbose)
 {
 	float magGauss_norm = 0;
 
 	// 磁场强度
 	magGauss_norm = sqrt(mx * mx + my * my + mz * mz);
-	printf("magGauss_norm =%f\r\n",magGauss_norm);
+	if(verbose) printf("magGauss_norm =%f\r\n",magGauss_norm);
 
 	//方向角计算：方向角是X轴和Y轴读数的反正切 
-	Sample_Angle.XY_Angle = (atan2((float)my,(float)mx) * (180 / 3.14159265) + 180);  
+	// X轴指向正北时，XY_Angle=0
+	// Sample_Angle.XY_Angle = (atan2((float)mx,(float)my) * (180 / 3.14159265) + 180);  
+	// Sample_Angle.XZ_Angle = (atan2((float)mz,(float)mx) * (180 / 3.14159265) + 180);
+	// Sample_Angle.YZ_Angle = (atan2((float)mz,(float)my) * (180 / 3.14159265) + 180);	
+	// Y轴指向正北时，XY_Angle=0(UTx318M地磁传感器Y轴指向设备正前方)
+	Sample_Angle.XY_Angle = - (atan2((float)mx,(float)my) * (180 / 3.14159265));  
 	Sample_Angle.XZ_Angle = (atan2((float)mz,(float)mx) * (180 / 3.14159265) + 180);
 	Sample_Angle.YZ_Angle = (atan2((float)mz,(float)my) * (180 / 3.14159265) + 180);		
-
-	printf("Angle data :XY_Angle=%f,XZ_Angle=%f,YZ_Angle=%f\r\n",Sample_Angle.XY_Angle, Sample_Angle.XZ_Angle,Sample_Angle.YZ_Angle);
+	if(Sample_Angle.XY_Angle < 0) Sample_Angle.XY_Angle +=360;
+	if(verbose) printf("Angle data :XY_Angle=%f,XZ_Angle=%f,YZ_Angle=%f\r\n",Sample_Angle.XY_Angle, Sample_Angle.XZ_Angle,Sample_Angle.YZ_Angle);
 		
 //  HAL_Delay(500);
 }
@@ -639,11 +644,11 @@ char calculate_qmc5883(uint32_t calculate_times)
 				A[24],A[25],A[26],A[27],A[28],A[29], \
 				A[30],A[31],A[32],A[33],A[34],A[35];
 		
-		cout << "A_matrix=\n" << A_matrix << endl;
-		cout << "A_matrix.inverse=\n" << A_matrix.inverse() << endl;
+		if(verbose) cout << "A_matrix=\n" << A_matrix << endl;
+		if(verbose) cout << "A_matrix.inverse=\n" << A_matrix.inverse() << endl;
 		//系数矩阵求逆
 		A_inv_matrix = A_matrix.inverse();
-		cout << "A_inv_matrix=\n" << A_inv_matrix << endl;
+		if(verbose) cout << "A_inv_matrix=\n" << A_inv_matrix << endl;
 			//非齐次列向量赋值
 		B[0]=-xxyy_avr;
 		B[1]=-xxzz_avr;
@@ -652,21 +657,21 @@ char calculate_qmc5883(uint32_t calculate_times)
 		B[4]=-xxz_avr ;
 		B[5]=-xx_avr  ;
 		B_matrix << B[0],B[1],B[2],B[3],B[4],B[5];
-		cout << "B_matrix=\n" << B_matrix << endl;
+		if(verbose) cout << "B_matrix=\n" << B_matrix << endl;
 			
 			//解方程组得出拟合参数
 		Par_matrix = A_inv_matrix*B_matrix;
-		cout << "Par_matrix=\n" << Par_matrix << endl;
+		if(verbose) cout << "Par_matrix=\n" << Par_matrix << endl;
 			//计算椭球参数
 			qmc5883_param.mx_offset=(-Par_matrix(2)/2.0f);             //拟合出的x轴中心坐标
 		qmc5883_param.my_offset=(-Par_matrix(3))/(2.0f*Par_matrix(0));    //拟合出的y轴中心坐标
 		qmc5883_param.mz_offset=(-Par_matrix(4)/(2.0f*Par_matrix(1)));    //拟合出的z轴中心坐标
-		printf("mx_offset=%f,my_offset=%f,mz_offset=%f \r\n",qmc5883_param.mx_offset,qmc5883_param.my_offset,qmc5883_param.mz_offset);
+		if(verbose) printf("mx_offset=%f,my_offset=%f,mz_offset=%f \r\n",qmc5883_param.mx_offset,qmc5883_param.my_offset,qmc5883_param.mz_offset);
     
 		qmc5883_param.mx_k= sqrtf(qmc5883_param.mx_offset*qmc5883_param.mx_offset + Par_matrix(0)*qmc5883_param.my_offset*qmc5883_param.my_offset + Par_matrix(1)*qmc5883_param.mz_offset*qmc5883_param.mz_offset - Par_matrix(5));  //拟合出的x方向上的轴半径
 		qmc5883_param.my_k= qmc5883_param.mx_k/sqrt(Par_matrix(0));                                                                              //拟合出的y方向上的轴半径
 		qmc5883_param.mz_k= qmc5883_param.mx_k/sqrt(Par_matrix(1));                                                                              //拟合出的z方向上的轴半径
-		printf("mx_k=%f,my_k=%f,mz=%f \r\n",qmc5883_param.mx_k,qmc5883_param.my_k,qmc5883_param.mz_k);
+		if(verbose) printf("mx_k=%f,my_k=%f,mz=%f \r\n",qmc5883_param.mx_k,qmc5883_param.my_k,qmc5883_param.mz_k);
 		
 		// g_qmc5883_calculate_flag=1;
 
