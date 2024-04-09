@@ -9,9 +9,10 @@
 #include <math.h>
 #include "qmc5883.h"
 #include <eigen3/Eigen/Dense>
-#include<iostream>
+#include <iostream>
 using namespace Eigen;
 using namespace std;
+#define I2C_INDEX	1
 #define I2C_PATH_3
 // #define I2C_PATH_4
 /* The default I2C address of this chip */
@@ -83,9 +84,10 @@ static struct QMC5883L  qmc5883;
 **/
  int I2COpen(unsigned char I2CNum, unsigned char u32DevAddr)
 {
+	char str[128];
 	printf("Enter I2COpen I2CNum == %d, u32DevAddr == 0x%x 7bit=0x%x\n", I2CNum, u32DevAddr,u32DevAddr>>1);
-	
-	g_Fd = i2c_open(DEV_I2C_PATH, u32DevAddr>>1);
+	sprintf(str, "/dev/i2c-%d", I2C_INDEX);
+	g_Fd = i2c_open(str, u32DevAddr>>1);
 	if (g_Fd < 0) {
 		return -1;
 	}
@@ -258,7 +260,7 @@ i2c_num = 3;
 i2c_num = 4;
 #endif
 
-  if(I2COpen(i2c_num,QMC5883L_ADDR)){
+  if(I2COpen(I2C_INDEX,QMC5883L_ADDR)){
   	printf("QMC5883_init I2COpen failed\n");
 	return -1;
   }
@@ -473,7 +475,7 @@ enum
 float mx, my, mz;
 
 
-unsigned char  g_qmc5883_calculate_flag = 2;
+unsigned char  g_qmc5883_calculate_flag = 0;
 
 typedef struct {
     float XY_Angle;
